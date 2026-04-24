@@ -42,7 +42,8 @@ export default function AdminPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === "1234") { // 기본 비밀번호
+    const adminPass = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "1234";
+    if (password === adminPass) {
       setIsAuthorized(true);
       setError("");
     } else {
