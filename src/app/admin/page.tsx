@@ -42,8 +42,8 @@ export default function AdminPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const adminPass = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "1234";
-    if (password === adminPass) {
+    const adminPass = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
+    if (password === adminPass && adminPass) {
       setIsAuthorized(true);
       setError("");
     } else {
