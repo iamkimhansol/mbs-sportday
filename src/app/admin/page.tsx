@@ -1,11 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, onSnapshot, query, orderBy, deleteDoc, doc, getDocs, writeBatch } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, deleteDoc, doc, writeBatch, getDocs, setDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Song } from "@/lib/music";
-import { Trash2, ShieldCheck, LogOut, Loader2, Copy, FileDown, Check } from "lucide-react";
+import { Trash2, ShieldCheck, LogOut, Loader2, Copy, FileDown, Check, Save, Clock, Calendar } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+interface AppSettings {
+  startTime: string;
+  endTime: string;
+}
 
 export default function AdminPage() {
   const [songs, setSongs] = useState<Song[]>([]);
@@ -15,6 +20,11 @@ export default function AdminPage() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [error, setError] = useState("");
   const [copySuccess, setCopySuccess] = useState(false);
+  const [settings, setSettings] = useState<AppSettings>({
+    startTime: "",
+    endTime: "",
+  });
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!isAuthorized) return;
@@ -37,7 +47,20 @@ export default function AdminPage() {
       }
     );
 
-    return () => unsubscribe();
+    const unsubSettings = onSnapshot(doc(db, "settings", "recommendation"), (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        setSettings({
+          startTime: data.startTime?.toDate ? data.startTime.toDate().toISOString().slice(0, 16) : "",
+          endTime: data.endTime?.toDate ? data.endTime.toDate().toISOString().slice(0, 16) : "",
+        });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      unsubSettings();
+    };
   }, [isAuthorized]);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -100,6 +123,22 @@ export default function AdminPage() {
     document.body.removeChild(link);
   };
 
+  const saveSettings = async () => {
+    setIsSaving(true);
+    try {
+      await setDoc(doc(db, "settings", "recommendation"), {
+        startTime: Timestamp.fromDate(new Date(settings.startTime)),
+        endTime: Timestamp.fromDate(new Date(settings.endTime)),
+      });
+      alert("추천 시간이 성공적으로 저장되었습니다!");
+    } catch (err) {
+      console.error(err);
+      alert("설정 저장 중 오류가 발생했습니다.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (!isAuthorized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
@@ -113,7 +152,6 @@ export default function AdminPage() {
               <ShieldCheck size={40} />
             </div>
             <h1 className="text-2xl font-bold text-slate-800">관리자 로그인</h1>
-            <p className="text-slate-500 text-center mt-1">관리자 비밀번호를 입력해 주세요.</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -158,8 +196,59 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+        {/* Time Settings Section */}
+        <section className="bg-white p-8 rounded-[2rem] border border-blue-50 shadow-sm space-y-6">
+          <div className="flex items-center gap-4 mb-2">
+            <div className="w-12 h-12 bg-yellow-100 text-yellow-600 rounded-2xl flex items-center justify-center shadow-sm">
+              <Clock size={24} strokeWidth={2.5} />
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-slate-800">추천 시간 설정 🕒</h3>
+              <p className="text-sm text-slate-500 font-medium font-sans">노래 추천을 활성화할 기간을 정해주세요.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 ml-1">
+                <Calendar size={14} /> 시작 시간
+              </label>
+              <input
+                type="datetime-local"
+                value={settings.startTime}
+                onChange={(e) => setSettings({ ...settings, startTime: e.target.value })}
+                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 ml-1">
+                <Calendar size={14} /> 종료 시간
+              </label>
+              <input
+                type="datetime-local"
+                value={settings.endTime}
+                onChange={(e) => setSettings({ ...settings, endTime: e.target.value })}
+                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={saveSettings}
+            disabled={isSaving}
+            className="w-full py-4.5 bg-slate-900 text-white rounded-2xl font-black text-lg hover:bg-black transition-all flex items-center justify-center gap-3 shadow-xl shadow-slate-200 active:scale-[0.98] disabled:opacity-50"
+          >
+            {isSaving ? "저장 중..." : (
+              <>
+                <Save size={20} />
+                <span>설정 저장하기</span>
+              </>
+            )}
+          </button>
+        </section>
+
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">추천 목록 관리</h2>
             <p className="text-slate-500">현재 총 {songs.length}곡이 추천되었습니다.</p>
@@ -167,7 +256,7 @@ export default function AdminPage() {
           <button
             onClick={clearPlaylist}
             disabled={songs.length === 0}
-            className="px-6 py-2 bg-red-50 text-red-600 border border-red-100 rounded-xl font-semibold hover:bg-red-600 hover:text-white transition-all disabled:opacity-50 disabled:hover:bg-red-50 disabled:hover:text-red-600"
+            className="px-6 py-2 bg-red-50 text-red-600 border border-red-100 rounded-xl font-semibold hover:bg-red-600 hover:text-white transition-all disabled:opacity-50"
           >
             플레이리스트 초기화
           </button>

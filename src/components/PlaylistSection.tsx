@@ -113,10 +113,6 @@ export default function PlaylistSection({ songs, loading }: PlaylistSectionProps
                     {playingId === song.id ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
                   </button>
                 )}
-                <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold text-slate-400 bg-slate-50 px-2.5 py-1.5 rounded-xl uppercase tracking-wider">
-                  <Calendar size={12} />
-                  {song.createdAt?.toDate ? song.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just Now"}
-                </div>
               </div>
             </motion.div>
           ))}
