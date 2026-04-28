@@ -18,44 +18,56 @@ export default function Home() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [timeErrorModal, setTimeErrorModal] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [isPendingStart, setIsPendingStart] = useState(false);
 
   useEffect(() => {
-    const unsubSettings = onSnapshot(doc(db, "settings", "recommendation"), (doc) => {
-      if (doc.exists()) {
-        setSettings(doc.data() as AppSettings);
+    const unsubSettings = onSnapshot(doc(db, "settings", "recommendation"), (docSnap) => {
+      if (docSnap.exists()) {
+        const newSettings = docSnap.data() as AppSettings;
+        setSettings(newSettings);
+        
+        // 만약 사용자가 이미 클릭해서 대기 중이라면 즉시 시간 체크 후 입장 시도
+        if (isPendingStart) {
+          checkTimeAndStart(newSettings);
+        }
       }
     });
     return () => unsubSettings();
-  }, []);
+  }, [isPendingStart]);
 
   const showMessage = (text: string, type: "success" | "error") => {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const handleStart = () => {
-    if (!settings) {
-      showMessage("설정을 불러오는 중입니다. 잠시만 기다려 주세요!", "error");
-      return;
-    }
-
+  const checkTimeAndStart = (currentSettings: AppSettings) => {
     const now = new Date();
-    const start = settings.startTime?.toDate();
-    const end = settings.endTime?.toDate();
+    const start = currentSettings.startTime?.toDate();
+    const end = currentSettings.endTime?.toDate();
 
     if (start && now < start) {
       const timeStr = start.toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
       setTimeErrorModal(`아직 추천 기간이 아닙니다!\n추천 시작: ${timeStr}`);
+      setIsPendingStart(false); // 팝업이 떴으므로 대기 해제
       return;
     }
 
     if (end && now > end) {
       setTimeErrorModal("노래 추천 기간이 종료되었습니다.\n참여해주셔서 감사합니다!");
+      setIsPendingStart(false);
       return;
     }
 
-    // 모든 조건 통과 시 추천 페이지로 이동
     router.push("/recommend");
+  };
+
+  const handleStart = () => {
+    if (!settings) {
+      setIsPendingStart(true); // 대기 상태로 전환
+      return;
+    }
+
+    checkTimeAndStart(settings);
   };
 
   return (
@@ -99,10 +111,20 @@ export default function Home() {
               <div className="space-y-4">
                 <button
                   onClick={handleStart}
-                  className="w-full py-5 bg-white text-blue-600 rounded-[1.5rem] font-black text-xl shadow-xl shadow-blue-900/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+                  disabled={isPendingStart}
+                  className="w-full py-5 bg-white text-blue-600 rounded-[1.5rem] font-black text-xl shadow-xl shadow-blue-900/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-80"
                 >
-                  노래 추천 하러가기
-                  <div className="w-2 h-2 rounded-full bg-blue-600 animate-ping"></div>
+                  {isPendingStart ? (
+                    <>
+                      <div className="w-5 h-5 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      불러오는 중...
+                    </>
+                  ) : (
+                    <>
+                      노래 추천 하러가기
+                      <div className="w-2 h-2 rounded-full bg-blue-600 animate-ping"></div>
+                    </>
+                  )}
                 </button>
 
                 <button
