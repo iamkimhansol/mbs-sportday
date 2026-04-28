@@ -93,8 +93,9 @@ export default function Home() {
   };
 
   const handleStart = () => {
+    // 설정이 아직 로딩되지 않았다면 조금만 기다려달라고 안내하거나 아무 동작 안 함
     if (!settings) {
-      setHasStarted(true);
+      showMessage("설정을 불러오는 중입니다. 잠시만 기다려 주세요!", "error");
       return;
     }
 
